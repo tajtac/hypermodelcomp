@@ -24,6 +24,15 @@ def init_params(layers, key):
         key, subkey = random.split(key)
         Ws.append(random.normal(subkey, (layers[i], layers[i + 1]))*std_glorot)
     return Ws
+  
+def init_params_posb(layers, key):
+    Ws = []
+    for i in range(len(layers) - 1):
+        std_glorot = jnp.sqrt(2/(layers[i] + layers[i + 1]))
+        key, subkey = random.split(key)
+        Ws.append(random.normal(subkey, (layers[i], layers[i + 1]))*std_glorot)
+    b = jnp.zeros(layers[i + 1])
+    return Ws, b
 
 def init_params_b(layers, key):
   Ws = []
@@ -42,6 +51,15 @@ def forward_pass(H, Ws):
         H = jnp.matmul(H, Ws[i])
         H = jnp.tanh(H)
     Y = jnp.matmul(H, Ws[-1])
+    return Y
+
+def forward_pass_posb(H, params):
+    Ws, b = params
+    N_layers = len(Ws)
+    for i in range(N_layers - 1):
+        H = jnp.matmul(H, Ws[i])
+        H = jnp.tanh(H)
+    Y = jnp.matmul(H, Ws[-1]) + jnp.exp(b) #We want a positive bias
     return Y
 
 @jit
@@ -99,6 +117,15 @@ def NODE(y0, params, steps = 100):
     out, _ = scan(body_func, y0, jnp.linspace(0,1,steps), length = steps)
     return out
 NODE_vmap = vmap(NODE, in_axes=(0, None), out_axes=0)
+
+@jit
+def NODE_posb(y0, params, steps = 100):
+    t0 = 0.0
+    dt = 1.0/steps
+    body_func = lambda y,t: (y + forward_pass_posb(jnp.array([y]), params)[0]*dt, None)
+    out, _ = scan(body_func, y0, jnp.linspace(0,1,steps), length = steps)
+    return out
+NODE_posb_vmap = vmap(NODE_posb, in_axes=(0, None), out_axes=0)
 
 # PK2 stress prediction using NODE.
 # this is the main function for an arbitrary deformation C
@@ -194,6 +221,7 @@ def init_params_icnn(layers, key):
   std_glorot = jnp.sqrt(2/(layers[0] + layers[1]))
   key, subkey = random.split(key)
   Wy.append(random.normal(subkey, (layers[0], layers[1]))*std_glorot)
+  bs.append(jnp.zeros(layers[1]))
 
   for i in range(1,len(layers) - 1):
     std_glorot = jnp.sqrt(2/(layers[i] + layers[i + 1]))
