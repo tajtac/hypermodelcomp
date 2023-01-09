@@ -235,11 +235,11 @@ def init_params_icnn(layers, key):
 def icnn_forwardpass(Y, params):
   Wz, Wy, bs = params
   N_layers = len(Wy)
-  Z = softplus(jnp.matmul(Y, Wy[0]) + bs[0])**2
+  Z = softplus(jnp.matmul(Y, jnp.exp(Wy[0])) + bs[0])**2
   for i in range(1, N_layers - 1):
-    Z = jnp.matmul(Z, softplus(Wz[i-1])) + jnp.matmul(Y, Wy[i]) + bs[i]
+    Z = jnp.matmul(Z, jnp.exp(Wz[i-1])) + jnp.matmul(Y, jnp.exp(Wy[i])) + bs[i]
     Z = softplus(Z)**2
-  Z = jnp.matmul(Z, jnp.exp(Wz[-1])) + jnp.matmul(Y, Wy[-1]) + bs[-1]
+  Z = jnp.matmul(Z, jnp.exp(Wz[-1])) + jnp.matmul(Y, jnp.exp(Wy[-1])) + bs[-1]
   return Z
 
 ##----------------------------------------------##
